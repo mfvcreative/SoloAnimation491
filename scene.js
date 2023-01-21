@@ -5,8 +5,7 @@
 */
 class Scene {
     constructor(width, height) {
-        this.WIDTH = width,
-        this.HEIGHT = height
+
         this.entityManager = new EntityManager()
         this.renderSystem = new RenderSystem(this.entityManager.getEntities)
     }
@@ -20,58 +19,6 @@ class Scene {
 }
 
 
-class PhysicsDemoScene extends Scene {
-    constructor(width, height) {
-        super(width, height)
-        this.collisionSystem = new CollisionSystem(this.entityManager.getEntities)
-    }
-
-    init() {
-        borderBlueprint({
-            x: 50,
-            y: 300,
-            width: 500,
-            height: 50
-        }, this.entityManager)
-
-        borderBlueprint({
-            x: 600,
-            y: 500,
-            width: 500,
-            height: 50
-        }, this.entityManager)
-
-        this.player = simpleDynamicBox({
-            x: 50,
-            y: 0,
-            width: 50,
-            height: 50
-        }, this.entityManager)
-        this.playerMovement = new PlayerInputSystem(this.player)
-        this.playerCollisionResolution = new PlayerCollisionResolution(this.player)
-        this.camera = new Camera(this.player, this)
-    }
-
-    update(input) {
-        this.entityManager.update()
-        this.playerMovement.update(input)
-        this.collisionSystem.update()
-        this.playerCollisionResolution.update()
-        this.camera.update()
-        console.log(this.player.components.transform)
-    }
-    draw(ctx) {
-        this.entityManager.entities.forEach(e => {
-            if(e.tag === 'border') {
-                ctx.strokeStyle = 'green'
-            } else {
-                ctx.strokeStyle = 'black'
-            }
-            let c = e.components.boxCollider
-            ctx.strokeRect(c.x - this.camera.x - 50, c.y - this.camera.y - 60 , c.width, c.height)
-        })
-    }
-}
 
 
 
@@ -80,15 +27,35 @@ class AnimationDemoScene extends Scene {
         super()
     }
 
-    init(sprite, input) {
-        this.player = this.#createPlayer(sprite)
-        this.playerStateManager = new PlayerStateManager(input, this.player)
-        this.createPlayerStates()
+    init(assets, input) {
+        this.#createBackgrounds(assets)
+
+        //this.redDino = this.#createDino(assets[DINO_RED])
+        //this.yellowDino = this.#createDino(assets[DINO_YELLOW])
+        this.blueDino = this.#createDino(assets[DINO_BLUE], 1000, 520, .03)
+        this.blueManager = new StateManager(input, this.blueDino)
+
+        this.greenDino = this.#createDino(assets[DINO_GREEN], 600, 600, .05)
+        this.greenManager = new StateManager(input, this.greenDino)
+
+        this.redDino = this.#createDino(assets[DINO_RED], 400, 550, .08)
+        this.redManager = new StateManager(input, this.redDino)
+
+        this.yellowDino = this.#createDino(assets[DINO_YELLOW], 80, 500, .12)
+        this.yellowManager = new StateManager(input, this.yellowDino)
+
+        this.#createDinoStates(this.blueManager)
+        this.#createDinoStates(this.greenManager)
+        this.#createDinoStates(this.redManager)
+        this.#createDinoStates(this.yellowManager)
     }
 
     update(input, deltaTime) {
         this.entityManager.update()
-        this.playerStateManager.update(input, deltaTime)
+        this.blueManager.update(deltaTime)
+        this.greenManager.update(deltaTime)
+        this.redManager.update(deltaTime)
+        this.yellowManager.update(deltaTime)
     }
 
     draw(ctx) {
@@ -100,55 +67,241 @@ class AnimationDemoScene extends Scene {
         I added a fps value to the sprite component so we can control
         the speed of frames.
     */
-    #createPlayer(sprite) {
+    #createDino(sprite, x, y, fps) {
         let e = this.entityManager.addEntity({
-            tag: 'player',
+            tag: 'dino',
             components: [
                 new CTransform({
-                    x: this.width * .5 + 1,
-                    y: this.height * .5 + 1,
+                    x: x,
+                    y: y,
                     maxVelocity: 10
                 }),
-                new CSprite(sprite, 100, 91.3, 1.5, .02),
+                new CSprite(sprite, 24, 24, 5, fps),
                 new CState()
             ]
         })
         return e
     }
-
-    /*
-            So basically, the pattern is, you add a state with the x and y values that
-        match an animation, from the sprite sheet. The frameX is mostly always zero, the first frame.
-        I created a Playerstatemanager to manage the state changes when there is inputs.
-        It is under systems.
-        I only mapped two buttons for two animations,
-        a => roll
-        d => run right
-    */
-    createPlayerStates() {
-        this.playerStateManager.addStates([
+    #createDinoStates(dinoManager) {
+        dinoManager.addStates([
             {
                 tag: 'Running',
                 state: new State({
-                    frameX: 0,
-                    frameY: 3,
-                    maxFrames: 8
+                    frameX: 4,
+                    frameY: 0,
+                    maxFrames: 9
                 }),
-            }, {
-                tag: 'Idle',
-                state: new State({
-                    frameX: 0,
-                    frameY: 5,
-                    maxFrames: 4
-                })
-            }, {
-                tag: 'Rolling',
-                state: new State({
-                    frameX: 0,
-                    frameY: 6,
-                    maxFrames: 6
-                })
             }
         ])
+        dinoManager.setState('Running')
+    }
+
+    #createBackgrounds(assets) {
+        this.entityManager.addEntity({
+            tag: 'background2',
+            components: [
+                new CTransform({
+                    x: 0,
+                    y: 0,
+                    maxVelocity: 0
+                }),
+                new CSprite(assets[LAYER_8], WIDTH, HEIGHT, 1, 1)
+            ]
+        })
+        this.entityManager.addEntity({
+            tag: 'background2',
+            components: [
+                new CTransform({
+                    x: WIDTH,
+                    y: 0,
+                    maxVelocity: 0
+                }),
+                new CSprite(assets[LAYER_8], WIDTH, HEIGHT, 1, 1)
+            ]
+        })
+
+        this.entityManager.addEntity({
+            tag: 'background',
+            components: [
+                new CTransform({
+                    x: 0,
+                    y: 0,
+                    maxVelocity: .2
+                }),
+                new CSprite(assets[LAYER_7], WIDTH, HEIGHT, 1, 1)
+            ]
+        })
+        this.entityManager.addEntity({
+            tag: 'background1',
+            components: [
+                new CTransform({
+                    x: WIDTH,
+                    y: 0,
+                    maxVelocity: .2
+                }),
+                new CSprite(assets[LAYER_7], WIDTH, HEIGHT, 1, 1)
+            ]
+        })
+
+        this.entityManager.addEntity({
+            tag: 'background',
+            components: [
+                new CTransform({
+                    x: 0,
+                    y: 0,
+                    maxVelocity: .4
+                }),
+                new CSprite(assets[LAYER_6], WIDTH, HEIGHT, 1, 1)
+            ]
+        })
+        this.entityManager.addEntity({
+            tag: 'background1',
+            components: [
+                new CTransform({
+                    x: WIDTH,
+                    y: 0,
+                    maxVelocity: .4
+                }),
+                new CSprite(assets[LAYER_6], WIDTH, HEIGHT, 1, 1)
+            ]
+        })
+
+        this.entityManager.addEntity({
+            tag: 'background',
+            components: [
+                new CTransform({
+                    x: 0,
+                    y: 0,
+                    maxVelocity: .6
+                }),
+                new CSprite(assets[LAYER_5], WIDTH, HEIGHT, 1, 1)
+            ]
+        })
+        this.entityManager.addEntity({
+            tag: 'background1',
+            components: [
+                new CTransform({
+                    x: WIDTH,
+                    y: 0,
+                    maxVelocity: .6
+                }),
+                new CSprite(assets[LAYER_5], WIDTH, HEIGHT, 1, 1)
+            ]
+        })
+
+        this.entityManager.addEntity({
+            tag: 'background',
+            components: [
+                new CTransform({
+                    x: 0,
+                    y: 0,
+                    maxVelocity: .8
+                }),
+                new CSprite(assets[LAYER_4], WIDTH, HEIGHT, 1, 1)
+            ]
+        })
+        this.entityManager.addEntity({
+            tag: 'background1',
+            components: [
+                new CTransform({
+                    x: WIDTH,
+                    y: 0,
+                    maxVelocity: .8
+                }),
+                new CSprite(assets[LAYER_4], WIDTH, HEIGHT, 1, 1)
+            ]
+        })
+
+        this.entityManager.addEntity({
+            tag: 'background',
+            components: [
+                new CTransform({
+                    x: 0,
+                    y: 0,
+                    maxVelocity: 1
+                }),
+                new CSprite(assets[LAYER_3], WIDTH, HEIGHT, 1, 1)
+            ]
+        })
+        this.entityManager.addEntity({
+            tag: 'background1',
+            components: [
+                new CTransform({
+                    x: WIDTH,
+                    y: 0,
+                    maxVelocity: 1
+                }),
+                new CSprite(assets[LAYER_3], WIDTH, HEIGHT, 1, 1)
+            ]
+        })
+
+        this.entityManager.addEntity({
+            tag: 'background',
+            components: [
+                new CTransform({
+                    x: 0,
+                    y: 0,
+                    maxVelocity: 1.2
+                }),
+                new CSprite(assets[LAYER_2], WIDTH, HEIGHT, 1, 1)
+            ]
+        })
+        this.entityManager.addEntity({
+            tag: 'background1',
+            components: [
+                new CTransform({
+                    x: WIDTH,
+                    y: 0,
+                    maxVelocity: 1.2
+                }),
+                new CSprite(assets[LAYER_2], WIDTH, HEIGHT, 1, 1)
+            ]
+        })
+
+        this.entityManager.addEntity({
+            tag: 'background',
+            components: [
+                new CTransform({
+                    x: 0,
+                    y: 0,
+                    maxVelocity: .6
+                }),
+                new CSprite(assets[LAYER_1], WIDTH, HEIGHT, 1, 1)
+            ]
+        })
+        this.entityManager.addEntity({
+            tag: 'background1',
+            components: [
+                new CTransform({
+                    x: WIDTH,
+                    y: 0,
+                    maxVelocity: .6
+                }),
+                new CSprite(assets[LAYER_1], WIDTH, HEIGHT, 1, 1)
+            ]
+        })
+
+        this.entityManager.addEntity({
+            tag: 'background',
+            components: [
+                new CTransform({
+                    x: 0,
+                    y: 0,
+                    maxVelocity: 1.7
+                }),
+                new CSprite(assets[LAYER_0], WIDTH, HEIGHT, 1, 1)
+            ]
+        })
+        this.entityManager.addEntity({
+            tag: 'background1',
+            components: [
+                new CTransform({
+                    x: WIDTH,
+                    y: 0,
+                    maxVelocity: 1.7
+                }),
+                new CSprite(assets[LAYER_0], WIDTH, HEIGHT, 1, 1)
+            ]
+        })
     }
 }

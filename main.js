@@ -4,13 +4,15 @@ const gameEngine = new GameEngine();
 const ASSET_MANAGER = new AssetManager();
 
 
-const tilesPath = './assets/sprites/tiles.png'
-ASSET_MANAGER.queueDownload(tilesPath)
+
+ASSETS.forEach( e => {
+	ASSET_MANAGER.queueDownload(e)
+})
 
 
 ASSET_MANAGER.downloadAll(() => {
 	const canvas = document.getElementById("gameWorld");
 	const ctx = canvas.getContext("2d");
-	gameEngine.init(ctx, ASSET_MANAGER.cache, tilesPath);
+	gameEngine.init(ctx, ASSET_MANAGER.cache);
 	gameEngine.start();
 });

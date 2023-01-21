@@ -11,20 +11,25 @@ class RenderSystem {
         this.entities = entities
     }
 
-    draw(ctx, camera) {
+    draw(ctx) {
 
         this.entities.forEach(e => {
             if(e.isDrawable) {
                 if(e.components.transform) {
                     let sprite = e.components.sprite
+                    let xSpeed = 0
+                    if(e.tag === 'background' || e.tag === 'background1') {
+                        xSpeed = e.components.transform.maxVelocity * -2
+                        this.#checkBackgrounds(e)
+                    }
                     ctx.drawImage(
                         sprite.sprite,
                         sprite.frameX * sprite.spriteWidth,
                         sprite.frameY * sprite.spriteHeight,
                         sprite.spriteWidth,
                         sprite.spriteHeight,
-                        e.components.transform.x - camera.x,
-                        e.components.transform.y - camera.y,
+                        e.components.transform.x += xSpeed,
+                        e.components.transform.y,
                         sprite.resizeWidth,
                         sprite.resizeHeight        
                     )
@@ -36,16 +41,16 @@ class RenderSystem {
         })
         
     }
-
-    update() {
-        this.entities.forEach(e => {
-            let sprite = e.components.sprite
-            if(sprite.frameX >= sprite.maxFrames) {
-                sprite.frameX = 0
-            } else {
-                sprite.frameX++
+    #checkBackgrounds(e) {
+        if(e.tag === 'background') {
+            if(e.components.transform.x <= -WIDTH) {
+                e.components.transform.x = 0
             }
-        })
+        } else if(e.tag === 'background1') {
+            if(e.components.transform.x <= 0) {
+                e.components.transform.x = WIDTH
+            }
+        }
         
     }
 }
@@ -66,12 +71,13 @@ class RenderBox {
 
 
 // Changes state of an entity. Usually used to change an animation
-class PlayerStateManager {
+class StateManager {
 
     constructor(input, player) {
         this.input = input
         this.playerSprite = player.components.sprite
         this.playerState = player.components.state
+        this.startFrame = 0
     }
 
     addStates(props) {
@@ -87,34 +93,21 @@ class PlayerStateManager {
 
     enter(state) {
         this.playerSprite.frameX = state.frameX
+        this.startFrame = state.frameX
         this.playerSprite.frameY = state.frameY
         this.playerSprite.maxFrames = state.maxFrames
     }
-    update(input, deltaTime) {
+    update(deltaTime) {
         if(this.playerSprite.frameTimer > this.playerSprite.frameInterval) {
             this.playerSprite.frameTimer = 0
             if(this.playerSprite.frameX < this.playerSprite.maxFrames) {
                 this.playerSprite.frameX++
                 
             } else {
-                this.playerSprite.frameX = 0
+                this.playerSprite.frameX = this.startFrame
             }
         } else {
             this.playerSprite.frameTimer += deltaTime
-        }
-        console.log(this.playerSprite.frameTimer)
-        if(input['d']) {
-            if(this.playerState.currentState !== 'Running') {
-                this.setState('Running')
-            }
-        } else if(input['a']) {
-                if(this.playerState.currentState !== 'Rolling') {
-                    this.setState('Rolling')
-                }
-        } else {
-            if(this.playerState.currentState !== 'Idle') {
-                this.setState('Idle')
-            }
         }
     }
     
